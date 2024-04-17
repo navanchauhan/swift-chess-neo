@@ -8,7 +8,7 @@
 import XCTest
 @testable import SwiftChessNeo
 
-final class SwiftChessNeoPlayer: XCTestCase {
+final class PlayerTests: XCTestCase {
     
     func testPlayerStruct() {
         let player1 = Player(kind: .human, name: "Magnus Carlsen", elo: 2900)
@@ -19,7 +19,9 @@ final class SwiftChessNeoPlayer: XCTestCase {
         XCTAssertEqual(player1.kind.isComputer, false)
         XCTAssertEqual(player3.kind.isHuman, false)
         XCTAssertEqual(player3.kind.isComputer, true)
+        
         XCTAssertEqual(player1, player2)
+        XCTAssertNotEqual(player1, player3)
         
         XCTAssertEqual(player1.kind.description, "Human")
         XCTAssertEqual(player3.kind.description, "Computer")
