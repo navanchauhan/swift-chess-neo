@@ -13,7 +13,7 @@ jobs:
       - name: Run Tests
         run: swift test --enable-code-coverage 
       - name: Convert to lcov
-        run: llvm-cov export -format="lcov" .build/debug/swift-chess-neoPackageTests.xctest/Contents/MacOS/swift-chess-neoPackageTests -instr-profile .build/debug/codecov/default.profdata > info.lcov
+        run: llvm-cov export -format="lcov" .build/debug/swift-chess-neoPackageTests.xctest  -instr-profile .build/debug/codecov/default.profdata > info.lcov 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
         with:
