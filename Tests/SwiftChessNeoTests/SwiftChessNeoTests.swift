@@ -67,7 +67,7 @@ final class Sage2Tests: XCTestCase {
      func testBoardSequence() {
          let board = Board()
          let spaces = Array(board)
-         let pieces = spaces.flatMap({ $0.piece })
+         let pieces = spaces.compactMap({ $0.piece })
          let whitePieces = pieces.filter({ $0.color.isWhite })
          let blackPieces = pieces.filter({ $0.color.isBlack })
          XCTAssertEqual(spaces.count, 64)
