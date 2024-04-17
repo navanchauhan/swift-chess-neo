@@ -6,6 +6,7 @@ jobs:
   Test-CodeCov:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@master
       - uses: swift-actions/setup-swift@v2
         with:
           swift-version: "5.9"
@@ -14,7 +15,7 @@ jobs:
       - name: Convert to lcov
         run: llvm-cov export -format="lcov" .build/debug/swift-chess-neoPackageTests.xctest/Contents/MacOS/swift-chess-neoPackageTests -instr-profile .build/debug/codecov/default.profdata > info.lcov
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-actions@v4.0.1
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: navanchauhan/swift-chess-neo
