@@ -1,7 +1,7 @@
 import XCTest
 @testable import SwiftChessNeo
 
-final class Sage2Tests: XCTestCase {
+final class SwiftChessNeoTests: XCTestCase {
     
     func testBoardInitializer() {
         XCTAssertEqual(Board(variant: .standard), Board())
