@@ -1,5 +1,5 @@
-name: Codecov
-run-name: Test and Upload Code Coverage
+name: Tests 
+run-name: Run Tests
 on: [push]
 
 jobs:
@@ -12,13 +12,3 @@ jobs:
           swift-version: "5.9"
       - name: Run Tests
         run: swift test --enable-code-coverage 
-      - name: Convert to lcov
-        run: llvm-cov export -format="lcov" .build/debug/swift-chess-neoPackageTests.xctest  -instr-profile .build/debug/codecov/default.profdata > info.lcov 
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          fail_ci_if_error: true
-          verbose: true
-          token: ${{ secrets.CODECOV_TOKEN }}
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
