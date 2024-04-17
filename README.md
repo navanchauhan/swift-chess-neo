@@ -2,7 +2,7 @@
 
 **WIP: I am actively developing swift-chess-neo while writing iWatchChess for iOS/macOS**
 
-Fork of [https://github.com/nvzqz/Sage](Sage by @nvzqz) along with [https://github.com/SuperGeroy](@SuperGeroy)'s patches. This fork adds SwiftUI views, and other QoL improvements. Due to some technical difficulties, I ended up copying the files in the `Sources` folder and adding them to my project. 
+Fork of [Sage by @nvzqz](https://github.com/nvzqz/Sage) along with [@SuperGeroy](https://github.com/SuperGeroy)'s patches. This fork adds SwiftUI views, and other QoL improvements. Due to some technical difficulties, I ended up copying the files in the `Sources` folder and adding them to my project. 
 
 ## To-Do
 
