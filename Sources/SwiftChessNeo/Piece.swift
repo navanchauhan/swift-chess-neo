@@ -287,6 +287,17 @@ public struct Piece: Hashable, CustomStringConvertible {
         case .king:   return "♚"
         }
     }
+    
+    public func getNaturalName() -> String {
+        switch kind {
+        case .pawn:   return self.color.isWhite ? "White Pawn" : "Black Pawn"
+        case .bishop: return self.color.isWhite ? "White Bishop" : "Black Bishop"
+        case .king: return self.color.isWhite ? "White King" : "Black King"
+        case .queen: return self.color.isWhite ? "White Queen" : "Black Queen"
+        case .rook: return self.color.isWhite ? "White Rook" : "Black Rook"
+        case .knight: return self.color.isWhite ? "White Knight" : "Black Knight"
+        }
+    }
 
 }
 
