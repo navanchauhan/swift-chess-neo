@@ -83,7 +83,7 @@ public struct Piece: Hashable, CustomStringConvertible {
                 case .bishop: return 3.25
                 case .rook:   return 5
                 case .queen:  return 9
-                case .king:   return .infinity
+                case .king:   return 900 //.infinity
             }
         }
 

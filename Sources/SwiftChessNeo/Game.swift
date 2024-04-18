@@ -313,7 +313,7 @@ public final class Game {
     public var blackPlayer: Player
 
     /// The game's variant.
-    public let variant: Variant
+    public var variant: Variant
 
     /// Attackers to the current player's king.
     private var attackersToKing: Bitboard
@@ -471,6 +471,24 @@ public final class Game {
     /// - complexity: O(1).
     public func copy() -> Game {
         return Game(game: self)
+    }
+    
+    /// Set current game from a copy
+    /// Useful for AI Bots
+    public func setGame(_ game: Game) {
+            self._moveHistory    = game._moveHistory
+            self._undoHistory    = game._undoHistory
+            self.board           = game.board
+            self.playerTurn      = game.playerTurn
+            self.castlingRights  = game.castlingRights
+            self.whitePlayer     = game.whitePlayer
+            self.blackPlayer     = game.blackPlayer
+            self.variant         = game.variant
+            self.attackersToKing = game.attackersToKing
+            self.halfmoves       = game.halfmoves
+            self.fullmoves       = game.fullmoves
+            self.enPassantTarget = game.enPassantTarget
+            self.PGN             = game.PGN
     }
 
     /// Returns the captured pieces for a color, or for all if color is `nil`.
