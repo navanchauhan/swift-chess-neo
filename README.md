@@ -17,6 +17,7 @@ Fork of [Sage by @nvzqz](https://github.com/nvzqz/Sage) along with [@SuperGeroy]
     - [Squares to Moves](#squares-to-moves)
     - [Playground Usage](#playground-usage)
         - [Board Quick Look](#board-quick-look)
+    - [Minimax Algorithm](#minimax-algorithm)
         
 ## Usage
 
@@ -192,6 +193,21 @@ Square.a4.moves(to: [.c3, .d4, .f6])
 
 ![Playground quick look](https://raw.githubusercontent.com/SuperGeroy/Sage/assets/BoardPlaygroundView.png)
 
+### Minimax Algorithm
+
+You can use the `bestMove(depth:)` method to find the best move for the current player
+
+```swift
+import SwiftChessNeo
+
+let game = try! Game(position: Game.Position(fen: "8/5B2/k5p1/4rp2/8/8/PP6/1K3R2 w - - 0 1")!)
+
+if let move = game.bestMove(depth: 3) {
+    print("Best move: \(aiMove)")
+// "Best move: f7 >>> g6"
+    try game.execute(move: aiMove)
+}
+```
 
 ## To-Do
 
