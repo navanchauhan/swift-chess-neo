@@ -1,5 +1,5 @@
 //
-//  SwiftChessNeoPlayer.swift
+//  MiscTests.swift
 //  
 //
 //  Created by Navan Chauhan on 4/17/24.
@@ -30,3 +30,31 @@ final class PlayerTests: XCTestCase {
     }
 
 }
+
+final class MinimaxTests: XCTestCase {
+    
+    func testBestMoveForWhite() { // Take with the bishop instead of the rook
+        let game = try! Game(position: Game.Position(fen: "8/5B2/k5p1/4rp2/8/8/PP6/1K3R2 w - - 0 1")!)
+        let move = game.bestMove(depth: 2)
+        XCTAssertEqual(move, Move(start: .f7, end: .g6))
+    }
+    
+    func testBestMoveForBlack() { // Take with the Knight
+        let game = try! Game(position: Game.Position(fen: "7k/6p1/8/5p1n/2r2P2/4B1P1/R7/K7 b - - 0 1")!)
+        let move = game.bestMove(depth: 2)
+        XCTAssertEqual(move, Move(start: .h5, end: .g3))
+    }
+
+    
+}
+
+final class VariantTests: XCTestCase {
+    
+    func testVariantEnum() {
+        let game = Game()
+        
+        XCTAssertEqual(game.variant.isUpsideDown, false)
+        XCTAssertEqual(game.variant.isStandard, true)
+    }
+}
+
