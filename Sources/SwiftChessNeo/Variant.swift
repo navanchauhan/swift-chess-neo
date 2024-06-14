@@ -21,26 +21,26 @@
 /// A chess variant that defines how a `Board` is populated or how a `Game` is played.
 public enum Variant {
 
-    /// Standard chess.
-    case standard
+  /// Standard chess.
+  case standard
 
-    /// Upside down chess where the piece colors swap starting squares.
-    case upsideDown
+  /// Upside down chess where the piece colors swap starting squares.
+  case upsideDown
 
-    /// Standard regardless of Swift version.
-    internal static let _standard = Variant.standard
+  /// Standard regardless of Swift version.
+  internal static let _standard = Variant.standard
 
-    /// UpsideDown regardless of Swift version.
-    internal static let _upsideDown = Variant.upsideDown
+  /// UpsideDown regardless of Swift version.
+  internal static let _upsideDown = Variant.upsideDown
 
-    /// `self` is standard variant.
-    public var isStandard: Bool {
-        return self == ._standard
-    }
+  /// `self` is standard variant.
+  public var isStandard: Bool {
+    return self == ._standard
+  }
 
-    /// `self` is upside down variant.
-    public var isUpsideDown: Bool {
-        return self == ._upsideDown
-    }
+  /// `self` is upside down variant.
+  public var isUpsideDown: Bool {
+    return self == ._upsideDown
+  }
 
 }

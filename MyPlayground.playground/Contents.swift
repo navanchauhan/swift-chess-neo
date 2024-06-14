@@ -7,11 +7,11 @@ game.position
 game.availableMoves()
 game.playerTurn
 if let aiMove = game.bestMove(depth: 2) {
-    print("Best move: \(aiMove)")
-    try game.execute(move: aiMove)
-    aiMove == Move(start: .f7, end: .g6)
+  print("Best move: \(aiMove)")
+  try game.execute(move: aiMove)
+  aiMove == Move(start: .f7, end: .g6)
 } else {
-    print("uh oh")
+  print("uh oh")
 }
 
 game.position.board

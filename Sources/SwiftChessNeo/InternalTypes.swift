@@ -19,45 +19,45 @@
 //
 
 #if os(OSX)
-    import Cocoa
-    internal typealias _View = NSView
-    internal typealias _Color = NSColor
+  import Cocoa
+  internal typealias _View = NSView
+  internal typealias _Color = NSColor
 #elseif os(iOS) || os(tvOS)
-    import UIKit
-    internal typealias _View = UIView
-    internal typealias _Color = UIColor
+  import UIKit
+  internal typealias _View = UIView
+  internal typealias _Color = UIColor
 #endif
 
-internal extension Optional {
+extension Optional {
 
-    var _altDescription: String {
-        return self.map({ String(describing: $0) }) ?? "nil"
-    }
+  var _altDescription: String {
+    return self.map({ String(describing: $0) }) ?? "nil"
+  }
 
 }
 
 extension RawRepresentable where RawValue == Int, Self: Comparable {
 
-    internal func _to(_ other: Self) -> [Self] {
-        if other > self {
-            return (rawValue...other.rawValue).compactMap(Self.init(rawValue:))
-        } else if other < self {
-            let values = (other.rawValue...rawValue).reversed()
-            return values.compactMap(Self.init(rawValue:))
-        } else {
-            return [self]
-        }
+  internal func _to(_ other: Self) -> [Self] {
+    if other > self {
+      return (rawValue...other.rawValue).compactMap(Self.init(rawValue:))
+    } else if other < self {
+      let values = (other.rawValue...rawValue).reversed()
+      return values.compactMap(Self.init(rawValue:))
+    } else {
+      return [self]
     }
+  }
 
-    internal func _between(_ other: Self) -> [Self] {
-        if other > self {
-            return (rawValue + 1 ..< other.rawValue).compactMap(Self.init(rawValue:))
-        } else if other < self {
-            let values = (other.rawValue + 1 ..< rawValue).reversed()
-            return values.compactMap(Self.init(rawValue:))
-        } else {
-            return []
-        }
+  internal func _between(_ other: Self) -> [Self] {
+    if other > self {
+      return (rawValue + 1..<other.rawValue).compactMap(Self.init(rawValue:))
+    } else if other < self {
+      let values = (other.rawValue + 1..<rawValue).reversed()
+      return values.compactMap(Self.init(rawValue:))
+    } else {
+      return []
     }
+  }
 
 }

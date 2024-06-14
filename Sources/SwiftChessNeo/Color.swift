@@ -21,63 +21,63 @@
 /// A chess color.
 public enum Color: String, CustomStringConvertible {
 
-    /// White chess color.
-    case white
+  /// White chess color.
+  case white
 
-    /// Black chess color.
-    case black
+  /// Black chess color.
+  case black
 
-    /// White color regardless of Swift version.
-    internal static let _white = Color.white
+  /// White color regardless of Swift version.
+  internal static let _white = Color.white
 
-    /// Black color regardless of Swift version.
-    internal static let _black = Color.black
+  /// Black color regardless of Swift version.
+  internal static let _black = Color.black
 
-    /// An array of all colors.
-    public static let all: [Color] = [.white, .black]
+  /// An array of all colors.
+  public static let all: [Color] = [.white, .black]
 
-    /// Whether the color is white or not.
-    public var isWhite: Bool {
-        return self == ._white
+  /// Whether the color is white or not.
+  public var isWhite: Bool {
+    return self == ._white
+  }
+
+  /// Whether the color is black or not.
+  public var isBlack: Bool {
+    return self == ._black
+  }
+
+  /// A textual representation of `self`.
+  public var description: String {
+    return rawValue
+  }
+
+  /// The numeric representation of `self`. `White` is "0", `Black` is "1".
+  public var numericValue: Int {
+    return self.isWhite ? 0 : 1
+  }
+
+  /// The lowercase character for the color. `White` is "w", `Black` is "b".
+  public var character: Character {
+    return self.isWhite ? "w" : "b"
+  }
+
+  /// Create a color from a character of any case.
+  public init?(character: Character) {
+    switch character {
+    case "W", "w": self = ._white
+    case "B", "b": self = ._black
+    default: return nil
     }
+  }
 
-    /// Whether the color is black or not.
-    public var isBlack: Bool {
-        return self == ._black
-    }
+  /// Returns the inverse of `self`.
+  public func inverse() -> Color {
+    return self.isWhite ? ._black : ._white
+  }
 
-    /// A textual representation of `self`.
-    public var description: String {
-        return rawValue
-    }
-
-    /// The numeric representation of `self`. `White` is "0", `Black` is "1".
-    public var numericValue: Int {
-        return self.isWhite ? 0 : 1
-    }
-    
-    /// The lowercase character for the color. `White` is "w", `Black` is "b".
-    public var character: Character {
-        return self.isWhite ? "w" : "b"
-    }
-
-    /// Create a color from a character of any case.
-    public init?(character: Character) {
-        switch character {
-        case "W", "w": self = ._white
-        case "B", "b": self = ._black
-        default: return nil
-        }
-    }
-
-    /// Returns the inverse of `self`.
-    public func inverse() -> Color {
-        return self.isWhite ? ._black : ._white
-    }
-
-    /// Inverts the color of `self`.
-    public mutating func invert() {
-        self = inverse()
-    }
+  /// Inverts the color of `self`.
+  public mutating func invert() {
+    self = inverse()
+  }
 
 }
