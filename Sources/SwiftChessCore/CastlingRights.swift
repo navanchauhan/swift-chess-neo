@@ -21,10 +21,10 @@
 /// Castling rights of a `Game`.
 ///
 /// Defines whether a `Color` has the right to castle for a `Board.Side`.
-public struct CastlingRights: CustomStringConvertible {
+public struct CastlingRights: CustomStringConvertible, Sendable {
 
   /// A castling right.
-  public enum Right: String, CustomStringConvertible {
+  public enum Right: String, CustomStringConvertible, CaseIterable, Sendable {
 
     /// White can castle kingside.
     case whiteKingside
@@ -39,21 +39,29 @@ public struct CastlingRights: CustomStringConvertible {
     case blackQueenside
 
     /// All rights.
-    public static let all: [Right] = [
-      .whiteKingside, .whiteQueenside, .blackKingside, .blackQueenside,
-    ]
+    public static var all: [Right] {
+      Array(allCases)
+    }
 
     /// White rights.
-    public static let white: [Right] = all.filter({ $0.color.isWhite })
+    public static var white: [Right] {
+      all.filter({ $0.color.isWhite })
+    }
 
     /// Black rights.
-    public static let black: [Right] = all.filter({ $0.color.isBlack })
+    public static var black: [Right] {
+      all.filter({ $0.color.isBlack })
+    }
 
     /// Kingside rights.
-    public static let kingside: [Right] = all.filter({ $0.side.isKingside })
+    public static var kingside: [Right] {
+      all.filter({ $0.side.isKingside })
+    }
 
     /// Queenside rights.
-    public static let queenside: [Right] = all.filter({ $0.side.isQueenside })
+    public static var queenside: [Right] {
+      all.filter({ $0.side.isQueenside })
+    }
 
     /// The color for `self`.
     public var color: Color {

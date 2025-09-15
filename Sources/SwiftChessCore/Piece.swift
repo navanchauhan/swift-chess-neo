@@ -19,10 +19,10 @@
 //
 
 /// A chess piece.
-public struct Piece: Hashable, CustomStringConvertible {
+public struct Piece: Hashable, CustomStringConvertible, Sendable {
 
   /// A piece kind.
-  public enum Kind: Int {
+  public enum Kind: Int, CaseIterable, Sendable {
 
     /// Pawn piece kind.
     case pawn
@@ -61,7 +61,9 @@ public struct Piece: Hashable, CustomStringConvertible {
     internal static let _king = Kind.king
 
     /// An array of all piece kinds.
-    public static let all: [Kind] = [.pawn, .knight, .bishop, .rook, .queen, .king]
+    public static var all: [Kind] {
+      Array(allCases)
+    }
 
     /// The piece kind's name.
     public var name: String {

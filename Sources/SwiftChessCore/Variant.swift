@@ -19,7 +19,7 @@
 //
 
 /// A chess variant that defines how a `Board` is populated or how a `Game` is played.
-public enum Variant {
+public enum Variant: Sendable {
 
   /// Standard chess.
   case standard

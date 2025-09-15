@@ -21,10 +21,10 @@
 /// A chess board used to map `Square`s to `Piece`s.
 ///
 /// Pieces map to separate instances of `Bitboard` which can be retrieved with `bitboard(for:)`.
-public struct Board: Hashable, CustomStringConvertible {
+public struct Board: Hashable, CustomStringConvertible, Sendable {
 
   /// A chess board space.
-  public struct Space: Hashable, CustomStringConvertible {
+  public struct Space: Hashable, CustomStringConvertible, Sendable {
 
     /// The occupying chess piece.
     public var piece: Piece?
@@ -111,7 +111,7 @@ public struct Board: Hashable, CustomStringConvertible {
   }
 
   /// An iterator for the spaces of a chess board.
-  public struct Iterator: IteratorProtocol {
+  public struct Iterator: IteratorProtocol, Sendable {
 
     let _board: Board
 
@@ -134,7 +134,7 @@ public struct Board: Hashable, CustomStringConvertible {
   }
 
   /// A board side.
-  public enum Side {
+  public enum Side: Sendable {
 
     /// Right side of the board.
     case kingside

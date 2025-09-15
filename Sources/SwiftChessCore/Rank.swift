@@ -21,7 +21,7 @@
 /// A chess board rank.
 ///
 /// `Rank`s refer to the eight rows of a chess board, beginning with 1 at the bottom and ending with 8 at the top.
-public enum Rank: Int, Comparable, CustomStringConvertible {
+public enum Rank: Int, Comparable, CustomStringConvertible, CaseIterable, Sendable {
 
   /// A direction in rank.
   public enum Direction {
@@ -63,7 +63,9 @@ public enum Rank: Int, Comparable, CustomStringConvertible {
 extension Rank {
 
   /// An array of all ranks.
-  public static let all: [Rank] = [1, 2, 3, 4, 5, 6, 7, 8]
+  public static var all: [Rank] {
+    Array(allCases)
+  }
 
   /// The row index of `self`.
   public var index: Int {

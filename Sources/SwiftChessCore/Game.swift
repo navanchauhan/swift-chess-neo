@@ -23,7 +23,7 @@ public final class Game {
   public var PGN: PGN?
 
   /// A chess game outcome.
-  public enum Outcome: Hashable, CustomStringConvertible {
+  public enum Outcome: Hashable, CustomStringConvertible, Sendable {
 
     /// A win for a `Color`.
     case win(Color)
@@ -100,7 +100,7 @@ public final class Game {
   }
 
   /// A game position.
-  public struct Position: Equatable, CustomStringConvertible {
+  public struct Position: Equatable, CustomStringConvertible, Sendable {
 
     /// The board for the position.
     public var board: Board
@@ -262,7 +262,7 @@ public final class Game {
   /// An error in move execution.
   ///
   /// Thrown by the `execute(move:promotion:)` or `execute(uncheckedMove:promotion:)` method for a `Game` instance.
-  public enum ExecutionError: Error {
+  public enum ExecutionError: Error, Sendable {
 
     /// Missing piece at a square.
     case missingPiece(Square)

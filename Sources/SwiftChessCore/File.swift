@@ -21,7 +21,7 @@
 /// A chess board file.
 ///
 /// Files refer to the eight columns of a chess board, beginning with A and ending with H from left to right.
-public enum File: Int, Comparable, CustomStringConvertible {
+public enum File: Int, Comparable, CustomStringConvertible, CaseIterable, Sendable {
 
   /// A direction in file.
   public enum Direction {
@@ -87,7 +87,9 @@ public enum File: Int, Comparable, CustomStringConvertible {
 extension File {
 
   /// An array of all files.
-  public static let all: [File] = [.a, .b, .c, .d, .e, .f, .g, .h]
+  public static var all: [File] {
+    Array(allCases)
+  }
 
   /// The column index of `self`.
   public var index: Int {

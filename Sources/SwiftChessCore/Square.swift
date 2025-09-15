@@ -24,7 +24,7 @@ public typealias Location = (file: File, rank: Rank)
 /// A chess board square.
 ///
 /// A `Square` can be one of sixty-four possible values, ranging from `A1` to `H8`.
-public enum Square: Int, CustomStringConvertible {
+public enum Square: Int, CustomStringConvertible, CaseIterable, Sendable {
 
   /// A1 square.
   case a1
@@ -223,7 +223,9 @@ public enum Square: Int, CustomStringConvertible {
 extension Square {
 
   /// An array of all squares.
-  public static let all: [Square] = (0..<64).compactMap(Square.init(rawValue:))
+  public static var all: [Square] {
+    Array(allCases)
+  }
 
   /// The file of `self`.
   public var file: File {
