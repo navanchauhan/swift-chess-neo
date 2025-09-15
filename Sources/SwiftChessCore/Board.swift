@@ -18,12 +18,6 @@
 //  limitations under the License.
 //
 
-#if os(OSX)
-  import Cocoa
-#elseif os(iOS) || os(tvOS)
-  import UIKit
-#endif
-
 /// A chess board used to map `Square`s to `Piece`s.
 ///
 /// Pieces map to separate instances of `Bitboard` which can be retrieved with `bitboard(for:)`.
@@ -113,53 +107,6 @@ public struct Board: Hashable, CustomStringConvertible {
       self.piece = nil
       return piece
     }
-
-    #if os(OSX) || os(iOS) || os(tvOS)
-
-      internal func _view(size: CGFloat) -> _View {
-        #if os(OSX)
-          let rectY = CGFloat(rank.index) * size
-        #else
-          let rectY = CGFloat(7 - rank.index) * size
-        #endif
-        let frame = CGRect(
-          x: CGFloat(file.index) * size,
-          y: rectY,
-          width: size,
-          height: size)
-        var textFrame = CGRect(x: 0, y: 0, width: size, height: size)
-        let fontSize = size * 0.625
-        let view = _View(frame: frame)
-        let str = piece.map({ String($0.specialCharacter(background: color)) }) ?? ""
-        let white = _Color.white
-        let black = _Color.black
-        let bg: _Color = color.isWhite ? white : black
-        let tc: _Color = color.isWhite ? black : white
-        #if os(OSX)
-          view.wantsLayer = true
-          let text = NSText(frame: textFrame)
-          view.layer?.backgroundColor = bg.cgColor
-          text.alignment = .center
-          text.font = .systemFont(ofSize: fontSize)
-          text.isEditable = false
-          text.isSelectable = false
-          text.string = str
-          text.drawsBackground = false
-          text.textColor = tc
-          view.addSubview(text)
-        #else
-          view.backgroundColor = bg
-          let label = UILabel(frame: textFrame)
-          label.textAlignment = .center
-          label.font = .systemFont(ofSize: fontSize)
-          label.text = str
-          label.textColor = tc
-          view.addSubview(label)
-        #endif
-        return view
-      }
-
-    #endif
 
   }
 
@@ -659,32 +606,6 @@ extension Board: Sequence {
   }
 
 }
-
-#if os(OSX) || os(iOS) || os(tvOS)
-
-  extension Board: CustomPlaygroundDisplayConvertible {
-
-    /// Returns the `playgroundDescription` for `self`.
-    private var _playgroundDescription: _View {
-      let spaceSize: CGFloat = 80
-      let boardSize = spaceSize * 8
-      let frame = CGRect(x: 0, y: 0, width: boardSize, height: boardSize)
-      let view = _View(frame: frame)
-
-      for space in self {
-        view.addSubview(space._view(size: spaceSize))
-      }
-      return view
-    }
-
-    /// A custom playground description for this instance.
-    public var playgroundDescription: Any {
-      return _playgroundDescription
-    }
-
-  }
-
-#endif
 
 /// Returns `true` if both boards are the same.
 public func == (lhs: Board, rhs: Board) -> Bool {

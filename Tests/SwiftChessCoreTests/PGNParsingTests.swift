@@ -8,7 +8,7 @@
 
 import Foundation
 import XCTest
-@testable import SwiftChessNeo
+@testable import SwiftChessCore
 
 class PGNParsingTests: XCTestCase {
 

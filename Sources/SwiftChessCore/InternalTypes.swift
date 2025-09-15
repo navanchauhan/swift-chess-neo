@@ -18,16 +18,6 @@
 //  limitations under the License.
 //
 
-#if os(OSX)
-  import Cocoa
-  internal typealias _View = NSView
-  internal typealias _Color = NSColor
-#elseif os(iOS) || os(tvOS)
-  import UIKit
-  internal typealias _View = UIView
-  internal typealias _Color = UIColor
-#endif
-
 extension Optional {
 
   var _altDescription: String {

@@ -1,7 +1,7 @@
 import XCTest
-@testable import SwiftChessNeo
+@testable import SwiftChessCore
 
-final class SwiftChessNeoTests: XCTestCase {
+final class SwiftChessCoreTests: XCTestCase {
     
     func testBoardInitializer() {
         XCTAssertEqual(Board(variant: .standard), Board())

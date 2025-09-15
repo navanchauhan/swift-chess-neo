@@ -6,7 +6,7 @@
 //
 
 import XCTest
-@testable import SwiftChessNeo
+@testable import SwiftChessCore
 
 final class PlayerTests: XCTestCase {
     
@@ -57,4 +57,3 @@ final class VariantTests: XCTestCase {
         XCTAssertEqual(game.variant.isStandard, true)
     }
 }
-

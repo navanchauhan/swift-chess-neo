@@ -2,7 +2,9 @@
 
 **WIP: I am actively developing swift-chess-neo while writing iWatchChess for iOS/macOS**
 
-Fork of [Sage by @nvzqz](https://github.com/nvzqz/Sage) along with [@SuperGeroy](https://github.com/SuperGeroy)'s patches. This fork adds SwiftUI views, and other QoL improvements. Due to some technical difficulties, I ended up copying the files in the `Sources` folder and adding them to my project. 
+Fork of [Sage by @nvzqz](https://github.com/nvzqz/Sage) along with [@SuperGeroy](https://github.com/SuperGeroy)'s patches. This fork adds SwiftUI views, and other QoL improvements. Due to some technical difficulties, I ended up copying the files in the `Sources` folder and adding them to my project.
+
+> **Breaking Change (September 2025):** The package now ships two distinct modules. `SwiftChessCore` is a platform-agnostic engine that builds on macOS, Linux, and Windows. `SwiftChessUI` depends on the core target and contains the Apple-only playground/UIView helpers. Update your imports accordingly.
 
 - [Usage](#usage)
     - [Game Management](#game-management)
@@ -26,7 +28,7 @@ Fork of [Sage by @nvzqz](https://github.com/nvzqz/Sage) along with [@SuperGeroy]
 Running a chess game can be as simple as setting up a loop.
 
 ```swift
-import SwiftChessNeo
+import SwiftChessCore
 
 let game = Game()
 
@@ -48,7 +50,7 @@ which checks the legality of the passed move.
 
 ### Move Generation
 
-SwiftChessNeo is capable of generating legal moves for the current player with full
+SwiftChessCore is capable of generating legal moves for the current player with full
 support for special moves such as en passant and castling.
 
 - `availableMoves()` will return all moves currently available.
@@ -60,7 +62,7 @@ support for special moves such as en passant and castling.
 
 ### Move Validation
 
-SwiftChessNeo can also validate whether a move is legal with the `isLegal(move:)`
+SwiftChessCore can also validate whether a move is legal with the `isLegal(move:)`
 method for a `Game` state.
 
 The `execute(move:)` family of methods calls this method, so it would be faster
@@ -189,7 +191,12 @@ Square.a4.moves(to: [.c3, .d4, .f6])
 
 #### Board Quick Look
 
-`Board` conforms to the `CustomPlaygroundDisplayConvertible` protocol.
+`Board` conforms to the `CustomPlaygroundDisplayConvertible` protocol when `SwiftChessUI` is imported on macOS/iOS/tvOS projects.
+
+```swift
+import SwiftChessCore
+import SwiftChessUI // enables playground quick look helpers
+```
 
 ![Playground quick look](https://raw.githubusercontent.com/SuperGeroy/Sage/assets/BoardPlaygroundView.png)
 
@@ -198,7 +205,7 @@ Square.a4.moves(to: [.c3, .d4, .f6])
 You can use the `bestMove(depth:)` method to find the best move for the current player
 
 ```swift
-import SwiftChessNeo
+import SwiftChessCore
 
 let game = try! Game(position: Game.Position(fen: "8/5B2/k5p1/4rp2/8/8/PP6/1K3R2 w - - 0 1")!)
 
@@ -231,4 +238,3 @@ if let move = game.bestMove(depth: 3) {
 Original Notice:
 
 > Sage and its modifications are published under [version 2.0 of the Apache License](https://www.apache.org/licenses/LICENSE-2.0). 
-
