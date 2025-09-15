@@ -27,24 +27,60 @@ internal func _pawnAttackTable(for color: Color) -> [Bitboard] {
   }
 }
 
-/// A lookup table of all white pawn attack bitboards.
-internal let _whitePawnAttackTable = Square.all.map { square in
-  return Bitboard(square: square)._pawnAttacks(for: ._white)
-}
+private enum _LookupTables {
 
-/// A lookup table of all black pawn attack bitboards.
-internal let _blackPawnAttackTable = Square.all.map { square in
-  return Bitboard(square: square)._pawnAttacks(for: ._black)
-}
+  /// A lookup table of all white pawn attack bitboards.
+  static let whitePawnAttack: [Bitboard] = Square.all.map { square in
+    Bitboard(square: square)._pawnAttacks(for: ._white)
+  }
 
-/// A lookup table of all king attack bitboards.
-internal let _kingAttackTable = Square.all.map { square in
-  return Bitboard(square: square)._kingAttacks()
-}
+  /// A lookup table of all black pawn attack bitboards.
+  static let blackPawnAttack: [Bitboard] = Square.all.map { square in
+    Bitboard(square: square)._pawnAttacks(for: ._black)
+  }
 
-/// A lookup table of all knight attack bitboards.
-internal let _knightAttackTable = Square.all.map { square in
-  return Bitboard(square: square)._knightAttacks()
+  /// A lookup table of all king attack bitboards.
+  static let kingAttack: [Bitboard] = Square.all.map { square in
+    Bitboard(square: square)._kingAttacks()
+  }
+
+  /// A lookup table of all knight attack bitboards.
+  static let knightAttack: [Bitboard] = Square.all.map { square in
+    Bitboard(square: square)._knightAttacks()
+  }
+
+  /// A lookup table of squares between two squares.
+  static let between: [Bitboard] = {
+    var table = [Bitboard](repeating: 0, count: 2080)
+    for start in Square.all {
+      for end in Square.all {
+        let index = _triangleIndex(start, end)
+        table[index] = _between(start, end)
+      }
+    }
+    return table
+  }()
+
+  /// A lookup table of lines for two squares.
+  static let line: [Bitboard] = {
+    var table = [Bitboard](repeating: 0, count: 2080)
+    for start in Square.all {
+      for end in Square.all {
+        let startBB = Bitboard(square: start)
+        let endBB = Bitboard(square: end)
+        let index = _triangleIndex(start, end)
+        let rookAttacks = startBB._rookAttacks()
+        let bishopAttacks = startBB._bishopAttacks()
+        if rookAttacks[end] {
+          table[index] = startBB | endBB | (rookAttacks & endBB._rookAttacks())
+        } else if bishopAttacks[end] {
+          table[index] = startBB | endBB | (bishopAttacks & endBB._bishopAttacks())
+        }
+      }
+    }
+    return table
+  }()
+
 }
 
 /// Returns the squares between `start` and `end`.
@@ -81,34 +117,32 @@ internal func _triangleIndex(_ start: Square, _ end: Square) -> Int {
   return (b >> 1) + a
 }
 
+/// A lookup table of all white pawn attack bitboards.
+internal var _whitePawnAttackTable: [Bitboard] {
+  _LookupTables.whitePawnAttack
+}
+
+/// A lookup table of all black pawn attack bitboards.
+internal var _blackPawnAttackTable: [Bitboard] {
+  _LookupTables.blackPawnAttack
+}
+
+/// A lookup table of all king attack bitboards.
+internal var _kingAttackTable: [Bitboard] {
+  _LookupTables.kingAttack
+}
+
+/// A lookup table of all knight attack bitboards.
+internal var _knightAttackTable: [Bitboard] {
+  _LookupTables.knightAttack
+}
+
 /// A lookup table of squares between two squares.
-internal let _betweenTable: [Bitboard] = {
-  var table = [Bitboard](repeating: 0, count: 2080)
-  for start in Square.all {
-    for end in Square.all {
-      let index = _triangleIndex(start, end)
-      table[index] = _between(start, end)
-    }
-  }
-  return table
-}()
+internal var _betweenTable: [Bitboard] {
+  _LookupTables.between
+}
 
 /// A lookup table of lines for two squares.
-internal let _lineTable: [Bitboard] = {
-  var table = [Bitboard](repeating: 0, count: 2080)
-  for start in Square.all {
-    for end in Square.all {
-      let startBB = Bitboard(square: start)
-      let endBB = Bitboard(square: end)
-      let index = _triangleIndex(start, end)
-      let rookAttacks = startBB._rookAttacks()
-      let bishopAttacks = startBB._bishopAttacks()
-      if rookAttacks[end] {
-        table[index] = startBB | endBB | (rookAttacks & endBB._rookAttacks())
-      } else if bishopAttacks[end] {
-        table[index] = startBB | endBB | (bishopAttacks & endBB._bishopAttacks())
-      }
-    }
-  }
-  return table
-}()
+internal var _lineTable: [Bitboard] {
+  _LookupTables.line
+}

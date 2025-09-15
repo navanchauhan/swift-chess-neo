@@ -19,7 +19,7 @@
 //
 
 /// A chess move from a start `Square` to an end `Square`.
-public struct Move: Hashable, CustomStringConvertible {
+public struct Move: Hashable, CustomStringConvertible, Sendable {
 
   /// The move's start square.
   public var start: Square

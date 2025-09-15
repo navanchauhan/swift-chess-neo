@@ -79,10 +79,10 @@ private let _notFileGH: Bitboard = 0x3f3f_3f3f_3f3f_3f3f
 ///
 /// - see also: [Bitboard (Wikipedia)](https://en.wikipedia.org/wiki/Bitboard ),
 ///            [Bitboards (Chess Programming Wiki)](https://chessprogramming.org/Bitboards)
-public struct Bitboard: RawRepresentable, Hashable, CustomStringConvertible {
+public struct Bitboard: RawRepresentable, Hashable, CustomStringConvertible, Sendable {
 
   /// A bitboard shift direction.
-  public enum ShiftDirection {
+  public enum ShiftDirection: Sendable {
 
     /// North direction.
     case north

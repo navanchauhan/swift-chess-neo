@@ -19,7 +19,7 @@
 //
 
 /// A chess color.
-public enum Color: String, CustomStringConvertible {
+public enum Color: String, CustomStringConvertible, CaseIterable, Sendable {
 
   /// White chess color.
   case white
@@ -34,7 +34,9 @@ public enum Color: String, CustomStringConvertible {
   internal static let _black = Color.black
 
   /// An array of all colors.
-  public static let all: [Color] = [.white, .black]
+  public static var all: [Color] {
+    Array(allCases)
+  }
 
   /// Whether the color is white or not.
   public var isWhite: Bool {
