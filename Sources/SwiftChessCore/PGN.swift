@@ -27,6 +27,114 @@ import Foundation
 
 public struct PGN: Equatable {
 
+  /// A parsed PGN movetext tree.
+  public struct Movetext: Equatable {
+
+    /// Comments that appear before the first move of the line.
+    public var leadingComments: [String]
+
+    /// Variations attached before the first move (rare, but valid).
+    public var leadingVariations: [Movetext]
+
+    /// Half-moves that make up the primary sequence.
+    public var moves: [Move]
+
+    /// Comments that appear after the final result marker.
+    public var trailingComments: [String]
+
+    /// Result token parsed from the movetext (e.g. `1-0`).
+    public var result: Game.Outcome?
+
+    /// Create a movetext node.
+    public init(
+      leadingComments: [String] = [],
+      leadingVariations: [Movetext] = [],
+      moves: [Move] = [],
+      trailingComments: [String] = [],
+      result: Game.Outcome? = nil
+    ) {
+      self.leadingComments = leadingComments
+      self.leadingVariations = leadingVariations
+      self.moves = moves
+      self.trailingComments = trailingComments
+      self.result = result
+    }
+
+    /// Convenience initializer used to build a straight line from SAN tokens.
+    public init(linearMoves sanMoves: [String]) {
+      var moves: [Move] = []
+      moves.reserveCapacity(sanMoves.count)
+      for (index, san) in sanMoves.enumerated() {
+        let number = (index / 2) + 1
+        let side: Color = (index % 2 == 0) ? .white : .black
+        moves.append(
+          Move(
+            number: number,
+            side: side,
+            notation: san
+          )
+        )
+      }
+      self.init(moves: moves)
+    }
+
+    /// The mainline SAN, stripped of common annotation punctuation.
+    public var linearSAN: [String] {
+      moves.map { $0.sanitizedNotation }
+    }
+
+  }
+
+  /// A single half-move in SAN/LAN notation enriched with metadata.
+  public struct Move: Equatable {
+
+    /// The move number associated with this half-move.
+    public var number: Int?
+
+    /// The colour that played the move.
+    public var side: Color?
+
+    /// The SAN (or LAN) notation as read from the PGN.
+    public var notation: String
+
+    /// Numeric annotation glyphs (e.g. `$1`) tied to the move.
+    public var nags: [String]
+
+    /// Comments appearing before the move.
+    public var commentsBefore: [String]
+
+    /// Comments appearing after the move.
+    public var commentsAfter: [String]
+
+    /// Variations branching from this move.
+    public var variations: [Movetext]
+
+    /// Create a move node.
+    public init(
+      number: Int? = nil,
+      side: Color? = nil,
+      notation: String,
+      nags: [String] = [],
+      commentsBefore: [String] = [],
+      commentsAfter: [String] = [],
+      variations: [Movetext] = []
+    ) {
+      self.number = number
+      self.side = side
+      self.notation = notation
+      self.nags = nags
+      self.commentsBefore = commentsBefore
+      self.commentsAfter = commentsAfter
+      self.variations = variations
+    }
+
+    /// The notation stripped from "?!" style suffixes for compatibility with legacy APIs.
+    public var sanitizedNotation: String {
+      notation.replacingOccurrences(of: "?", with: "").replacingOccurrences(of: "!", with: "")
+    }
+
+  }
+
   /// PGN tag.
   public enum Tag: String, CustomStringConvertible {
 
@@ -177,25 +285,32 @@ public struct PGN: Equatable {
   /// The tag pairs for `self`.
   public var tagPairs: [String: String]
 
+  /// Parsed movetext for the game.
+  public var movetext: Movetext
+
   /// The moves in standard algebraic notation.
-  public var moves: [String]
+  public var moves: [String] {
+    get { movetext.linearSAN }
+    set { movetext = Movetext(linearMoves: newValue) }
+  }
 
   /// The game outcome.
   public var outcome: Game.Outcome? {
     get {
       let resultTag = Tag.result
-      return self[resultTag].flatMap(Game.Outcome.init)
+      return self[resultTag].flatMap(Game.Outcome.init) ?? movetext.result
     }
     set {
       let resultTag = Tag.result
       self[resultTag] = newValue?.description
+      movetext.result = newValue
     }
   }
 
   /// Create PGN with `tagPairs` and `moves`.
   public init(tagPairs: [String: String] = [:], moves: [String] = []) {
     self.tagPairs = tagPairs
-    self.moves = moves
+    self.movetext = Movetext(linearMoves: moves)
   }
 
   /// Create PGN with `tagPairs` and `moves`.
@@ -212,6 +327,8 @@ public struct PGN: Equatable {
   public init(parse string: String) throws {
     self.init()
     if string.isEmpty { return }
+    var linearMoves: [String] = []
+    var parsedOutcome: Game.Outcome? = nil
     for line in string._splitByNewlines() {
       if line.first == "[" {
         let commentsStripped = try line._commentsStripped(strings: true)
@@ -224,11 +341,15 @@ public struct PGN: Equatable {
           continue
         }
         let (moves, outcome) = try commentsStripped._moves()
-        self.moves += moves
+        linearMoves += moves
         if let outcome = outcome {
-          self.outcome = outcome
+          parsedOutcome = outcome
         }
       }
+    }
+    movetext = Movetext(linearMoves: linearMoves)
+    if let parsedOutcome {
+      self.outcome = parsedOutcome
     }
   }
 
@@ -460,5 +581,5 @@ extension String {
 /// Returns a Boolean value indicating whether two values are equal.
 public func == (lhs: PGN, rhs: PGN) -> Bool {
   return lhs.tagPairs == rhs.tagPairs
-    && lhs.moves == rhs.moves
+    && lhs.movetext == rhs.movetext
 }
