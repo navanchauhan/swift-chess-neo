@@ -18,9 +18,6 @@ let package = Package(
         .library(
             name: "SwiftChessUI",
             targets: ["SwiftChessUI"]),
-        .executable(
-            name: "BoardDemoApp",
-            targets: ["BoardDemoApp"]),
     ],
     targets: [
         .target(
@@ -31,10 +28,6 @@ let package = Package(
         .target(
             name: "SwiftChessUI",
             dependencies: ["SwiftChessCore"]),
-        .executableTarget(
-            name: "BoardDemoApp",
-            dependencies: ["SwiftChessCore", "SwiftChessUI"],
-            path: "Examples/BoardDemoApp"),
         .testTarget(
             name: "SwiftChessCoreTests",
             dependencies: ["SwiftChessCore", "SwiftChessUI"]),
