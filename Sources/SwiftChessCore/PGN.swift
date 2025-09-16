@@ -30,6 +30,65 @@ public struct PGN: Equatable {
   /// A parsed PGN movetext tree.
   public struct Movetext: Equatable {
 
+    /// A diagnostic produced while parsing movetext.
+    public struct Diagnostic: Equatable {
+
+      /// Severity level for a diagnostic message.
+      public enum Level: String, Equatable {
+        case warning
+        case error
+      }
+
+      /// The severity of the diagnostic.
+      public var level: Level
+
+      /// The human-readable message.
+      public var message: String
+
+      /// One-based line number in the source.
+      public var line: Int
+
+      /// One-based column number in the source.
+      public var column: Int
+
+      /// Create a diagnostic entry.
+      public init(level: Level, message: String, line: Int, column: Int) {
+        self.level = level
+        self.message = message
+        self.line = line
+        self.column = column
+      }
+
+    }
+
+    /// A node in the movetext variation tree.
+    public struct TreeNode: Equatable {
+
+      /// Indicates where the variation originates.
+      public enum Origin: Equatable {
+        case root
+        case leading(Int)
+        case variation(moveIndex: Int, variationIndex: Int)
+      }
+
+      /// Movetext content for this node.
+      public var movetext: Movetext
+
+      /// The origin metadata describing how this node is anchored.
+      public var origin: Origin
+
+      /// Child variation nodes.
+      public var children: [TreeNode]
+
+      /// Create a tree node.
+      public init(movetext: Movetext, origin: Origin, children: [TreeNode] = []) {
+        self.movetext = movetext
+        self.origin = origin
+        self.children = children
+      }
+
+    }
+
     /// Comments that appear before the first move of the line.
     public var leadingComments: [String]
 
@@ -45,19 +104,24 @@ public struct PGN: Equatable {
     /// Result token parsed from the movetext (e.g. `1-0`).
     public var result: Game.Outcome?
 
+    /// Diagnostics emitted while parsing the movetext block.
+    public var diagnostics: [Diagnostic]
+
     /// Create a movetext node.
     public init(
       leadingComments: [String] = [],
       leadingVariations: [Movetext] = [],
       moves: [Move] = [],
       trailingComments: [String] = [],
-      result: Game.Outcome? = nil
+      result: Game.Outcome? = nil,
+      diagnostics: [Diagnostic] = []
     ) {
       self.leadingComments = leadingComments
       self.leadingVariations = leadingVariations
       self.moves = moves
       self.trailingComments = trailingComments
       self.result = result
+      self.diagnostics = diagnostics
     }
 
     /// Convenience initializer used to build a straight line from SAN tokens.
@@ -76,11 +140,31 @@ public struct PGN: Equatable {
         )
       }
       self.init(moves: moves)
+      diagnostics = []
     }
 
     /// The mainline SAN, stripped of common annotation punctuation.
     public var linearSAN: [String] {
       moves.map { $0.sanitizedNotation }
+    }
+
+    /// Build a variation tree for this movetext.
+    public func buildTree() -> TreeNode {
+      return _buildTree(origin: .root)
+    }
+
+    private func _buildTree(origin: TreeNode.Origin) -> TreeNode {
+      var nodes: [TreeNode] = []
+      nodes.reserveCapacity(leadingVariations.count + moves.reduce(0) { $0 + $1.variations.count })
+      for (index, variation) in leadingVariations.enumerated() {
+        nodes.append(variation._buildTree(origin: .leading(index)))
+      }
+      for (moveIndex, move) in moves.enumerated() {
+        for (variationIndex, variation) in move.variations.enumerated() {
+          nodes.append(variation._buildTree(origin: .variation(moveIndex: moveIndex, variationIndex: variationIndex)))
+        }
+      }
+      return TreeNode(movetext: self, origin: origin, children: nodes)
     }
 
   }
