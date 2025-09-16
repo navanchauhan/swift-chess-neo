@@ -327,29 +327,26 @@ public struct PGN: Equatable {
   public init(parse string: String) throws {
     self.init()
     if string.isEmpty { return }
-    var linearMoves: [String] = []
-    var parsedOutcome: Game.Outcome? = nil
+    var movetextLines: [String] = []
     for line in string._splitByNewlines() {
       if line.first == "[" {
         let commentsStripped = try line._commentsStripped(strings: true)
         let (tag, value) = try commentsStripped._tagPair()
         tagPairs[tag] = value
       } else if line.first != "%" {
-        let commentsStripped = try line._commentsStripped(strings: false)
-        // Lichess PGNs have an extra comment after a few days
-        if commentsStripped.count == 0 {
-          continue
-        }
-        let (moves, outcome) = try commentsStripped._moves()
-        linearMoves += moves
-        if let outcome = outcome {
-          parsedOutcome = outcome
-        }
+        movetextLines.append(line)
       }
     }
-    movetext = Movetext(linearMoves: linearMoves)
-    if let parsedOutcome {
-      self.outcome = parsedOutcome
+    let movetextSource = movetextLines.joined(separator: "\n")
+    if movetextSource.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      movetext = Movetext()
+    } else {
+      var parser = PGNMovetextParser(source: movetextSource)
+      let parsedMovetext = try parser.parse()
+      movetext = parsedMovetext
+      if let result = parsedMovetext.result {
+        self.outcome = result
+      }
     }
   }
 
@@ -381,46 +378,24 @@ public struct PGN: Equatable {
     for tag in orderedTags {
       if let value = tagPairs.removeValue(forKey: tag) {
         result += "[\(tag) \"\(value)\"]\n"
-      } else {
-        if let defaultValue = sevenTags.first(where: { $0.0 == tag })?.1 {
-          result += "[\(tag) \"\(defaultValue)\"]\n"
-        } else {
-          // Handle cases where the tag is not in 'sevenTags'
-        }
+      } else if let defaultValue = sevenTags.first(where: { $0.0 == tag })?.1 {
+        result += "[\(tag) \"\(defaultValue)\"]\n"
       }
     }
     for (tag, value) in tagPairs {
       result += "[\(tag) \"\(value)\"]\n"
     }
-    let strideTo = stride(from: 0, to: moves.endIndex, by: 2)
-    var moveLine = ""
-    for num in strideTo {
-      let moveNumber = (num + 2) / 2
-      var moveString = "\(moveNumber). \(moves[num])"
-      if num + 1 < moves.endIndex {
-        moveString += " \(moves[num + 1])"
-      }
-      if moveString.count + moveLine.count < 80 {
-        if !moveLine.isEmpty {
-          moveString = " \(moveString)"
-        }
-        moveLine += moveString
-      } else {
-        result += "\n\(moveLine)"
-        moveLine = moveString
-      }
+    if !result.hasSuffix("\n\n") {
+      result += "\n"
     }
-    if !moveLine.isEmpty {
-      result += "\n\(moveLine)"
-    }
-    if let outcomeString = outcome?.description {
-      if moveLine.isEmpty {
-        result += "\n\(outcomeString)"
-      } else if outcomeString.count + moveLine.count < 80 {
-        result += " \(outcomeString)"
-      } else {
-        result += "\n\(outcomeString)"
-      }
+
+    let termination = movetext.result?.description
+      ?? self[.result]
+      ?? "*"
+    let tokens = _serializeMovetext(movetext, termination: termination)
+    let movesSection = _wrapMovetext(tokens)
+    if !movesSection.isEmpty {
+      result += movesSection
     }
     return result
   }
@@ -440,14 +415,6 @@ extension Character {
     "\u{2006}", "\u{2007}", "\u{2008}", "\u{2009}", "\u{200A}",
     "\u{200B}", "\u{202F}", "\u{205F}", "\u{3000}", "\u{FEFF}",
   ]
-
-  fileprivate static let digits: Set<Character> = [
-    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-  ]
-
-  fileprivate var isDigit: Bool {
-    return Character.digits.contains(self)
-  }
 
 }
 
@@ -488,38 +455,6 @@ extension String {
       throw PGN.ParseError.tagPairTokenCount(tagParts)
     }
     return (tagParts[0], tokens[1])
-  }
-
-  @inline(__always)
-  fileprivate func _moves() throws -> (moves: [String], outcome: Game.Outcome?) {
-    var stripped = ""
-    var ravDepth = 0
-    var startIndex = self.startIndex
-    let lastIndex = _lastIndex
-    for (index, character) in zip(indices, self) {
-      if character == "(" {
-        if ravDepth == 0 {
-          stripped += self[startIndex..<index]
-        }
-        ravDepth += 1
-      } else if character == ")" {
-        ravDepth -= 1
-        if ravDepth == 0 {
-          startIndex = self.index(after: index)
-        }
-      } else if index == lastIndex && ravDepth == 0 {
-        stripped += self[startIndex...index]
-      }
-    }
-    guard ravDepth == 0 else {
-      throw PGN.ParseError.parenthesisCountForRAV(self)
-    }
-    let tokens = stripped._split(by: [" ", "."])
-    let moves = tokens.filter({ $0.first?.isDigit == false }).map {
-      $0.replacingOccurrences(of: "?", with: "").replacingOccurrences(of: "!", with: "")
-    }
-    let outcome = tokens.last.flatMap(Game.Outcome.init)
-    return (moves, outcome)
   }
 
   @inline(__always)
@@ -582,4 +517,108 @@ extension String {
 public func == (lhs: PGN, rhs: PGN) -> Bool {
   return lhs.tagPairs == rhs.tagPairs
     && lhs.movetext == rhs.movetext
+}
+
+// MARK: - Movetext Serialization Helpers
+
+extension PGN {
+
+  private struct _SerializationState {
+    var lastPrintedWhite: Int?
+  }
+
+  private func _serializeMovetext(_ movetext: Movetext, termination: String) -> [String] {
+    var state = _SerializationState()
+    return _serializeMovetext(movetext, state: &state, termination: termination)
+  }
+
+  private func _serializeMovetext(
+    _ movetext: Movetext,
+    state: inout _SerializationState,
+    termination: String?
+  ) -> [String] {
+    var tokens: [String] = []
+
+    for comment in movetext.leadingComments where !comment.isEmpty {
+      tokens.append("{\(comment)}")
+    }
+
+    for variation in movetext.leadingVariations {
+      let variationText = _serializeVariation(variation)
+      tokens.append("(\(variationText))")
+    }
+
+    for move in movetext.moves {
+      if move.side != .black {
+        let printedNumber = move.number ?? ((state.lastPrintedWhite ?? 0) + 1)
+        tokens.append("\(printedNumber).")
+        state.lastPrintedWhite = printedNumber
+      } else {
+        let referenceNumber = move.number ?? state.lastPrintedWhite
+        if referenceNumber != state.lastPrintedWhite, let ref = referenceNumber {
+          tokens.append("\(ref)...")
+        }
+      }
+
+      for comment in move.commentsBefore where !comment.isEmpty {
+        tokens.append("{\(comment)}")
+      }
+
+      tokens.append(move.notation)
+
+      for nag in move.nags where !nag.isEmpty {
+        tokens.append("$\(nag)")
+      }
+
+      for variation in move.variations {
+        let variationText = _serializeVariation(variation)
+        tokens.append("(\(variationText))")
+      }
+
+      for comment in move.commentsAfter where !comment.isEmpty {
+        tokens.append("{\(comment)}")
+      }
+    }
+
+    if let termination, !termination.isEmpty {
+      tokens.append(termination)
+    }
+
+    for comment in movetext.trailingComments where !comment.isEmpty {
+      tokens.append("{\(comment)}")
+    }
+
+    return tokens
+  }
+
+  private func _serializeVariation(_ movetext: Movetext) -> String {
+    var state = _SerializationState()
+    let variationTokens = _serializeMovetext(
+      movetext,
+      state: &state,
+      termination: movetext.result?.description
+    )
+    return variationTokens.joined(separator: " ")
+  }
+
+  private func _wrapMovetext(_ tokens: [String]) -> String {
+    guard !tokens.isEmpty else { return "" }
+    var lines: [String] = []
+    var currentLine = ""
+    for token in tokens {
+      let separator = currentLine.isEmpty ? "" : " "
+      let candidate = currentLine + separator + token
+      if !currentLine.isEmpty && candidate.count > 80 {
+        lines.append(currentLine)
+        currentLine = token
+      } else {
+        currentLine = candidate
+      }
+    }
+    if !currentLine.isEmpty {
+      lines.append(currentLine)
+    }
+    return lines.joined(separator: "\n")
+  }
+
 }

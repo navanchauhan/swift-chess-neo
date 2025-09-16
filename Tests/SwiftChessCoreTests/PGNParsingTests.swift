@@ -199,6 +199,34 @@ class PGNParsingTests: XCTestCase {
         }
     }
 
+    func testPGNMovetextCapturesCommentsVariationsAndNAGs() throws {
+        let source = """
+        [Event "Training"]
+        [Result "1-0"]
+
+        1. e4 {King's pawn} e5 2. Nf3 $1 Nc6 (2... d6 {Philidor Defence}) {Black prepares} 3. Bb5+! a6 1-0
+        """
+
+        let pgn = try PGN(parse: source)
+
+        XCTAssertEqual(pgn.tagPairs["Event"], "Training")
+        XCTAssertEqual(pgn.movetext.leadingComments, [])
+        XCTAssertEqual(pgn.movetext.moves.map(\.notation), ["e4", "e5", "Nf3", "Nc6", "Bb5+!", "a6"])
+        XCTAssertEqual(pgn.moves, ["e4", "e5", "Nf3", "Nc6", "Bb5+", "a6"])
+        XCTAssertEqual(pgn.movetext.moves[0].commentsAfter, ["King's pawn"])
+        XCTAssertEqual(pgn.movetext.moves[2].nags, ["1"])
+        XCTAssertEqual(pgn.movetext.moves[3].commentsAfter, ["Black prepares"])
+        XCTAssertEqual(pgn.movetext.moves[3].variations.count, 1)
+
+        let variation = try XCTUnwrap(pgn.movetext.moves[3].variations.first)
+        XCTAssertEqual(variation.moves.count, 1)
+        XCTAssertEqual(variation.moves[0].number, 2)
+        XCTAssertEqual(variation.moves[0].side, .black)
+        XCTAssertEqual(variation.moves[0].notation, "d6")
+        XCTAssertEqual(variation.moves[0].commentsAfter, ["Philidor Defence"])
+        XCTAssertEqual(pgn.movetext.result, .win(.white))
+    }
+
     func testPGNValidMoves() {
         let validMoves: [String] = ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nge7", "O-O", "f6", "Qe2", "d5",
                            "b3", "Qd6", "Na3", "Be6", "Rb1", "O-O-O", "Bxd5", "Qxd5", "exd5", "Nf5",
