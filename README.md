@@ -19,6 +19,7 @@ Fork of [Sage by @nvzqz](https://github.com/nvzqz/Sage) along with [@SuperGeroy]
     - [Squares to Moves](#squares-to-moves)
     - [Playground Usage](#playground-usage)
         - [Board Quick Look](#board-quick-look)
+    - [SwiftUI BoardView](#swiftui-boardview)
     - [Minimax Algorithm](#minimax-algorithm)
         
 ## Usage
@@ -199,6 +200,34 @@ import SwiftChessUI // enables playground quick look helpers
 ```
 
 ![Playground quick look](https://raw.githubusercontent.com/SuperGeroy/Sage/assets/BoardPlaygroundView.png)
+
+### SwiftUI BoardView
+
+`SwiftChessUI` includes a native SwiftUI surface that mirrors the classic AppKit playground helpers while supporting modern gestures and animations. Compose a `BoardView` with an observed `BoardState` to render a live game:
+
+```swift
+import SwiftChessCore
+import SwiftChessUI
+import SwiftUI
+
+struct AnalysisView: View {
+    @StateObject private var boardState = BoardState()
+
+    var body: some View {
+        BoardView(state: boardState, theme: .classic)
+            .frame(width: 320, height: 320)
+            .onAppear {
+                boardState.feedbackHandler = { feedback in
+                    if feedback == .invalidMove {
+                        print("Illegal move")
+                    }
+                }
+            }
+    }
+}
+```
+
+`BoardState` reacts to taps and drag gestures, highlights legal moves, tracks the last move, and surfaces promotion requests. Customize colours, highlight palettes, and animation curves by passing a tailored `BoardTheme`.
 
 ### Minimax Algorithm
 
