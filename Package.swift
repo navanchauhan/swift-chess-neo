@@ -5,6 +5,12 @@ import PackageDescription
 
 let package = Package(
     name: "swift-chess-neo",
+    platforms: [
+        .macOS(.v13),
+        .iOS(.v16),
+        .tvOS(.v16),
+        .watchOS(.v9)
+    ],
     products: [
         .library(
             name: "SwiftChessCore",
@@ -12,6 +18,9 @@ let package = Package(
         .library(
             name: "SwiftChessUI",
             targets: ["SwiftChessUI"]),
+        .executable(
+            name: "BoardDemoApp",
+            targets: ["BoardDemoApp"]),
     ],
     targets: [
         .target(
@@ -22,8 +31,12 @@ let package = Package(
         .target(
             name: "SwiftChessUI",
             dependencies: ["SwiftChessCore"]),
+        .executableTarget(
+            name: "BoardDemoApp",
+            dependencies: ["SwiftChessCore", "SwiftChessUI"],
+            path: "Examples/BoardDemoApp"),
         .testTarget(
             name: "SwiftChessCoreTests",
-            dependencies: ["SwiftChessCore"]),
+            dependencies: ["SwiftChessCore", "SwiftChessUI"]),
     ]
 )
