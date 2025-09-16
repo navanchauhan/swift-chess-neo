@@ -27,6 +27,198 @@ import Foundation
 
 public struct PGN: Equatable {
 
+  /// A parsed PGN movetext tree.
+  public struct Movetext: Equatable {
+
+    /// A diagnostic produced while parsing movetext.
+    public struct Diagnostic: Equatable {
+
+      /// Severity level for a diagnostic message.
+      public enum Level: String, Equatable {
+        case warning
+        case error
+      }
+
+      /// The severity of the diagnostic.
+      public var level: Level
+
+      /// The human-readable message.
+      public var message: String
+
+      /// One-based line number in the source.
+      public var line: Int
+
+      /// One-based column number in the source.
+      public var column: Int
+
+      /// Create a diagnostic entry.
+      public init(level: Level, message: String, line: Int, column: Int) {
+        self.level = level
+        self.message = message
+        self.line = line
+        self.column = column
+      }
+
+    }
+
+    /// A node in the movetext variation tree.
+    public struct TreeNode: Equatable {
+
+      /// Indicates where the variation originates.
+      public enum Origin: Equatable {
+        case root
+        case leading(Int)
+        case variation(moveIndex: Int, variationIndex: Int)
+      }
+
+      /// Movetext content for this node.
+      public var movetext: Movetext
+
+      /// The origin metadata describing how this node is anchored.
+      public var origin: Origin
+
+      /// Child variation nodes.
+      public var children: [TreeNode]
+
+      /// Create a tree node.
+      public init(movetext: Movetext, origin: Origin, children: [TreeNode] = []) {
+        self.movetext = movetext
+        self.origin = origin
+        self.children = children
+      }
+
+    }
+
+    /// Comments that appear before the first move of the line.
+    public var leadingComments: [String]
+
+    /// Variations attached before the first move (rare, but valid).
+    public var leadingVariations: [Movetext]
+
+    /// Half-moves that make up the primary sequence.
+    public var moves: [Move]
+
+    /// Comments that appear after the final result marker.
+    public var trailingComments: [String]
+
+    /// Result token parsed from the movetext (e.g. `1-0`).
+    public var result: Game.Outcome?
+
+    /// Diagnostics emitted while parsing the movetext block.
+    public var diagnostics: [Diagnostic]
+
+    /// Create a movetext node.
+    public init(
+      leadingComments: [String] = [],
+      leadingVariations: [Movetext] = [],
+      moves: [Move] = [],
+      trailingComments: [String] = [],
+      result: Game.Outcome? = nil,
+      diagnostics: [Diagnostic] = []
+    ) {
+      self.leadingComments = leadingComments
+      self.leadingVariations = leadingVariations
+      self.moves = moves
+      self.trailingComments = trailingComments
+      self.result = result
+      self.diagnostics = diagnostics
+    }
+
+    /// Convenience initializer used to build a straight line from SAN tokens.
+    public init(linearMoves sanMoves: [String]) {
+      var moves: [Move] = []
+      moves.reserveCapacity(sanMoves.count)
+      for (index, san) in sanMoves.enumerated() {
+        let number = (index / 2) + 1
+        let side: Color = (index % 2 == 0) ? .white : .black
+        moves.append(
+          Move(
+            number: number,
+            side: side,
+            notation: san
+          )
+        )
+      }
+      self.init(moves: moves)
+      diagnostics = []
+    }
+
+    /// The mainline SAN, stripped of common annotation punctuation.
+    public var linearSAN: [String] {
+      moves.map { $0.sanitizedNotation }
+    }
+
+    /// Build a variation tree for this movetext.
+    public func buildTree() -> TreeNode {
+      return _buildTree(origin: .root)
+    }
+
+    private func _buildTree(origin: TreeNode.Origin) -> TreeNode {
+      var nodes: [TreeNode] = []
+      nodes.reserveCapacity(leadingVariations.count + moves.reduce(0) { $0 + $1.variations.count })
+      for (index, variation) in leadingVariations.enumerated() {
+        nodes.append(variation._buildTree(origin: .leading(index)))
+      }
+      for (moveIndex, move) in moves.enumerated() {
+        for (variationIndex, variation) in move.variations.enumerated() {
+          nodes.append(variation._buildTree(origin: .variation(moveIndex: moveIndex, variationIndex: variationIndex)))
+        }
+      }
+      return TreeNode(movetext: self, origin: origin, children: nodes)
+    }
+
+  }
+
+  /// A single half-move in SAN/LAN notation enriched with metadata.
+  public struct Move: Equatable {
+
+    /// The move number associated with this half-move.
+    public var number: Int?
+
+    /// The colour that played the move.
+    public var side: Color?
+
+    /// The SAN (or LAN) notation as read from the PGN.
+    public var notation: String
+
+    /// Numeric annotation glyphs (e.g. `$1`) tied to the move.
+    public var nags: [String]
+
+    /// Comments appearing before the move.
+    public var commentsBefore: [String]
+
+    /// Comments appearing after the move.
+    public var commentsAfter: [String]
+
+    /// Variations branching from this move.
+    public var variations: [Movetext]
+
+    /// Create a move node.
+    public init(
+      number: Int? = nil,
+      side: Color? = nil,
+      notation: String,
+      nags: [String] = [],
+      commentsBefore: [String] = [],
+      commentsAfter: [String] = [],
+      variations: [Movetext] = []
+    ) {
+      self.number = number
+      self.side = side
+      self.notation = notation
+      self.nags = nags
+      self.commentsBefore = commentsBefore
+      self.commentsAfter = commentsAfter
+      self.variations = variations
+    }
+
+    /// The notation stripped from "?!" style suffixes for compatibility with legacy APIs.
+    public var sanitizedNotation: String {
+      notation.replacingOccurrences(of: "?", with: "").replacingOccurrences(of: "!", with: "")
+    }
+
+  }
+
   /// PGN tag.
   public enum Tag: String, CustomStringConvertible {
 
@@ -177,25 +369,32 @@ public struct PGN: Equatable {
   /// The tag pairs for `self`.
   public var tagPairs: [String: String]
 
+  /// Parsed movetext for the game.
+  public var movetext: Movetext
+
   /// The moves in standard algebraic notation.
-  public var moves: [String]
+  public var moves: [String] {
+    get { movetext.linearSAN }
+    set { movetext = Movetext(linearMoves: newValue) }
+  }
 
   /// The game outcome.
   public var outcome: Game.Outcome? {
     get {
       let resultTag = Tag.result
-      return self[resultTag].flatMap(Game.Outcome.init)
+      return self[resultTag].flatMap(Game.Outcome.init) ?? movetext.result
     }
     set {
       let resultTag = Tag.result
       self[resultTag] = newValue?.description
+      movetext.result = newValue
     }
   }
 
   /// Create PGN with `tagPairs` and `moves`.
   public init(tagPairs: [String: String] = [:], moves: [String] = []) {
     self.tagPairs = tagPairs
-    self.moves = moves
+    self.movetext = Movetext(linearMoves: moves)
   }
 
   /// Create PGN with `tagPairs` and `moves`.
@@ -212,22 +411,25 @@ public struct PGN: Equatable {
   public init(parse string: String) throws {
     self.init()
     if string.isEmpty { return }
+    var movetextLines: [String] = []
     for line in string._splitByNewlines() {
       if line.first == "[" {
         let commentsStripped = try line._commentsStripped(strings: true)
         let (tag, value) = try commentsStripped._tagPair()
         tagPairs[tag] = value
       } else if line.first != "%" {
-        let commentsStripped = try line._commentsStripped(strings: false)
-        // Lichess PGNs have an extra comment after a few days
-        if commentsStripped.count == 0 {
-          continue
-        }
-        let (moves, outcome) = try commentsStripped._moves()
-        self.moves += moves
-        if let outcome = outcome {
-          self.outcome = outcome
-        }
+        movetextLines.append(line)
+      }
+    }
+    let movetextSource = movetextLines.joined(separator: "\n")
+    if movetextSource.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+      movetext = Movetext()
+    } else {
+      var parser = PGNMovetextParser(source: movetextSource)
+      let parsedMovetext = try parser.parse()
+      movetext = parsedMovetext
+      if let result = parsedMovetext.result {
+        self.outcome = result
       }
     }
   }
@@ -260,46 +462,24 @@ public struct PGN: Equatable {
     for tag in orderedTags {
       if let value = tagPairs.removeValue(forKey: tag) {
         result += "[\(tag) \"\(value)\"]\n"
-      } else {
-        if let defaultValue = sevenTags.first(where: { $0.0 == tag })?.1 {
-          result += "[\(tag) \"\(defaultValue)\"]\n"
-        } else {
-          // Handle cases where the tag is not in 'sevenTags'
-        }
+      } else if let defaultValue = sevenTags.first(where: { $0.0 == tag })?.1 {
+        result += "[\(tag) \"\(defaultValue)\"]\n"
       }
     }
     for (tag, value) in tagPairs {
       result += "[\(tag) \"\(value)\"]\n"
     }
-    let strideTo = stride(from: 0, to: moves.endIndex, by: 2)
-    var moveLine = ""
-    for num in strideTo {
-      let moveNumber = (num + 2) / 2
-      var moveString = "\(moveNumber). \(moves[num])"
-      if num + 1 < moves.endIndex {
-        moveString += " \(moves[num + 1])"
-      }
-      if moveString.count + moveLine.count < 80 {
-        if !moveLine.isEmpty {
-          moveString = " \(moveString)"
-        }
-        moveLine += moveString
-      } else {
-        result += "\n\(moveLine)"
-        moveLine = moveString
-      }
+    if !result.hasSuffix("\n\n") {
+      result += "\n"
     }
-    if !moveLine.isEmpty {
-      result += "\n\(moveLine)"
-    }
-    if let outcomeString = outcome?.description {
-      if moveLine.isEmpty {
-        result += "\n\(outcomeString)"
-      } else if outcomeString.count + moveLine.count < 80 {
-        result += " \(outcomeString)"
-      } else {
-        result += "\n\(outcomeString)"
-      }
+
+    let termination = movetext.result?.description
+      ?? self[.result]
+      ?? "*"
+    let tokens = _serializeMovetext(movetext, termination: termination)
+    let movesSection = _wrapMovetext(tokens)
+    if !movesSection.isEmpty {
+      result += movesSection
     }
     return result
   }
@@ -319,14 +499,6 @@ extension Character {
     "\u{2006}", "\u{2007}", "\u{2008}", "\u{2009}", "\u{200A}",
     "\u{200B}", "\u{202F}", "\u{205F}", "\u{3000}", "\u{FEFF}",
   ]
-
-  fileprivate static let digits: Set<Character> = [
-    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-  ]
-
-  fileprivate var isDigit: Bool {
-    return Character.digits.contains(self)
-  }
 
 }
 
@@ -367,38 +539,6 @@ extension String {
       throw PGN.ParseError.tagPairTokenCount(tagParts)
     }
     return (tagParts[0], tokens[1])
-  }
-
-  @inline(__always)
-  fileprivate func _moves() throws -> (moves: [String], outcome: Game.Outcome?) {
-    var stripped = ""
-    var ravDepth = 0
-    var startIndex = self.startIndex
-    let lastIndex = _lastIndex
-    for (index, character) in zip(indices, self) {
-      if character == "(" {
-        if ravDepth == 0 {
-          stripped += self[startIndex..<index]
-        }
-        ravDepth += 1
-      } else if character == ")" {
-        ravDepth -= 1
-        if ravDepth == 0 {
-          startIndex = self.index(after: index)
-        }
-      } else if index == lastIndex && ravDepth == 0 {
-        stripped += self[startIndex...index]
-      }
-    }
-    guard ravDepth == 0 else {
-      throw PGN.ParseError.parenthesisCountForRAV(self)
-    }
-    let tokens = stripped._split(by: [" ", "."])
-    let moves = tokens.filter({ $0.first?.isDigit == false }).map {
-      $0.replacingOccurrences(of: "?", with: "").replacingOccurrences(of: "!", with: "")
-    }
-    let outcome = tokens.last.flatMap(Game.Outcome.init)
-    return (moves, outcome)
   }
 
   @inline(__always)
@@ -460,5 +600,109 @@ extension String {
 /// Returns a Boolean value indicating whether two values are equal.
 public func == (lhs: PGN, rhs: PGN) -> Bool {
   return lhs.tagPairs == rhs.tagPairs
-    && lhs.moves == rhs.moves
+    && lhs.movetext == rhs.movetext
+}
+
+// MARK: - Movetext Serialization Helpers
+
+extension PGN {
+
+  private struct _SerializationState {
+    var lastPrintedWhite: Int?
+  }
+
+  private func _serializeMovetext(_ movetext: Movetext, termination: String) -> [String] {
+    var state = _SerializationState()
+    return _serializeMovetext(movetext, state: &state, termination: termination)
+  }
+
+  private func _serializeMovetext(
+    _ movetext: Movetext,
+    state: inout _SerializationState,
+    termination: String?
+  ) -> [String] {
+    var tokens: [String] = []
+
+    for comment in movetext.leadingComments where !comment.isEmpty {
+      tokens.append("{\(comment)}")
+    }
+
+    for variation in movetext.leadingVariations {
+      let variationText = _serializeVariation(variation)
+      tokens.append("(\(variationText))")
+    }
+
+    for move in movetext.moves {
+      if move.side != .black {
+        let printedNumber = move.number ?? ((state.lastPrintedWhite ?? 0) + 1)
+        tokens.append("\(printedNumber).")
+        state.lastPrintedWhite = printedNumber
+      } else {
+        let referenceNumber = move.number ?? state.lastPrintedWhite
+        if referenceNumber != state.lastPrintedWhite, let ref = referenceNumber {
+          tokens.append("\(ref)...")
+        }
+      }
+
+      for comment in move.commentsBefore where !comment.isEmpty {
+        tokens.append("{\(comment)}")
+      }
+
+      tokens.append(move.notation)
+
+      for nag in move.nags where !nag.isEmpty {
+        tokens.append("$\(nag)")
+      }
+
+      for variation in move.variations {
+        let variationText = _serializeVariation(variation)
+        tokens.append("(\(variationText))")
+      }
+
+      for comment in move.commentsAfter where !comment.isEmpty {
+        tokens.append("{\(comment)}")
+      }
+    }
+
+    if let termination, !termination.isEmpty {
+      tokens.append(termination)
+    }
+
+    for comment in movetext.trailingComments where !comment.isEmpty {
+      tokens.append("{\(comment)}")
+    }
+
+    return tokens
+  }
+
+  private func _serializeVariation(_ movetext: Movetext) -> String {
+    var state = _SerializationState()
+    let variationTokens = _serializeMovetext(
+      movetext,
+      state: &state,
+      termination: movetext.result?.description
+    )
+    return variationTokens.joined(separator: " ")
+  }
+
+  private func _wrapMovetext(_ tokens: [String]) -> String {
+    guard !tokens.isEmpty else { return "" }
+    var lines: [String] = []
+    var currentLine = ""
+    for token in tokens {
+      let separator = currentLine.isEmpty ? "" : " "
+      let candidate = currentLine + separator + token
+      if !currentLine.isEmpty && candidate.count > 80 {
+        lines.append(currentLine)
+        currentLine = token
+      } else {
+        currentLine = candidate
+      }
+    }
+    if !currentLine.isEmpty {
+      lines.append(currentLine)
+    }
+    return lines.joined(separator: "\n")
+  }
+
 }

@@ -199,15 +199,87 @@ class PGNParsingTests: XCTestCase {
         }
     }
 
-    func testPGNValidMoves() {
+    func testPGNMovetextCapturesCommentsVariationsAndNAGs() throws {
+        let source = """
+        [Event "Training"]
+        [Result "1-0"]
+
+        1. e4 {King's pawn} e5 2. Nf3 $1 Nc6 (2... d6 {Philidor Defence}) {Black prepares} 3. Bb5+! a6 1-0
+        """
+
+        let pgn = try PGN(parse: source)
+
+        XCTAssertEqual(pgn.tagPairs["Event"], "Training")
+        XCTAssertEqual(pgn.movetext.leadingComments, [])
+        XCTAssertEqual(pgn.movetext.moves.map(\.notation), ["e4", "e5", "Nf3", "Nc6", "Bb5+!", "a6"])
+        XCTAssertEqual(pgn.moves, ["e4", "e5", "Nf3", "Nc6", "Bb5+", "a6"])
+        XCTAssertEqual(pgn.movetext.moves[0].commentsAfter, ["King's pawn"])
+        XCTAssertEqual(pgn.movetext.moves[2].nags, ["1"])
+        XCTAssertEqual(pgn.movetext.moves[3].commentsAfter, ["Black prepares"])
+        XCTAssertEqual(pgn.movetext.moves[3].variations.count, 1)
+
+        let variation = try XCTUnwrap(pgn.movetext.moves[3].variations.first)
+        XCTAssertEqual(variation.moves.count, 1)
+        XCTAssertEqual(variation.moves[0].number, 2)
+        XCTAssertEqual(variation.moves[0].side, .black)
+        XCTAssertEqual(variation.moves[0].notation, "d6")
+        XCTAssertEqual(variation.moves[0].commentsAfter, ["Philidor Defence"])
+        XCTAssertEqual(pgn.movetext.result, .win(.white))
+    }
+
+    func testMovetextTreeStructure() throws {
+        let source = """
+        1. e4 e5 2. Nf3 Nc6 (2... d6) 3. Bb5 (3... a6 (3... Nf6)) 3... a6 *
+        """
+
+        let pgn = try PGN(parse: source)
+        let tree = pgn.movetext.buildTree()
+        XCTAssertEqual(tree.origin, .root)
+        XCTAssertEqual(tree.movetext.moves.count, 6)
+        XCTAssertEqual(tree.children.count, 2)
+
+        let d6Variation = tree.children[0]
+        switch d6Variation.origin {
+        case .variation(let moveIndex, let variationIndex):
+            XCTAssertEqual(moveIndex, 3)
+            XCTAssertEqual(variationIndex, 0)
+        default:
+            XCTFail("Expected variation child for move index 3")
+        }
+        XCTAssertEqual(d6Variation.movetext.moves.first?.notation, "d6")
+        XCTAssertTrue(d6Variation.children.isEmpty)
+
+        let a6Variation = tree.children[1]
+        switch a6Variation.origin {
+        case .variation(let moveIndex, let variationIndex):
+            XCTAssertEqual(moveIndex, 4)
+            XCTAssertEqual(variationIndex, 0)
+        default:
+            XCTFail("Expected variation anchored to move index 4")
+        }
+        XCTAssertEqual(a6Variation.movetext.moves.first?.notation, "a6")
+
+        let nestedChild = try XCTUnwrap(a6Variation.children.first)
+        switch nestedChild.origin {
+        case .variation(let moveIndex, let variationIndex):
+            XCTAssertEqual(moveIndex, 0)
+            XCTAssertEqual(variationIndex, 0)
+        default:
+            XCTFail("Expected nested variation child")
+        }
+        XCTAssertEqual(nestedChild.movetext.moves.first?.notation, "Nf6")
+    }
+
+    func testPGNValidMoves() throws {
         let validMoves: [String] = ["e4", "e5", "Nf3", "Nc6", "Bc4", "Nge7", "O-O", "f6", "Qe2", "d5",
                            "b3", "Qd6", "Na3", "Be6", "Rb1", "O-O-O", "Bxd5", "Qxd5", "exd5", "Nf5",
                            "d6", "Nfd4", "d7+", "Kb8", "Qa6", "Re8", "d8=Q+", "Nxd8", "Qxa7+", "Kxa7",
                            "Bb2", "N8c6", "Rfc1", "Rd8", "Ra1", "Rd5", "Rf1", "Bxa3", "Nxd4", "e4",
                            "f4", "exf3", "Rxf3", "Rhd8", "d3", "R5d6", "Bxa3", "Nxd4", "Bxd6", "Rf8",
-                           "Bxf8", "Nc6", "Rf5", "Bf7", "Bc5+", "Ka8", "Rd5", "Nd8", "Rxd8#"]
+                           "Bxf8", "Nc6", "Rf5", "Bf7", "Bc5+", "Ka8", "Rd5", "Nd8", "Rxd8#",
+                           "e2e4", "Pe2xe4", "e7e8Q", "P@e4", "N@f3+", "d8Q"]
 
-        let invalidMoves: [String] = ["r3gr34", "xihwr", "Ld4", "j3", "Rxf9", "😮"]
+        let invalidMoves: [String] = ["r3gr34", "xihwr", "Ld4", "j3", "Rxf9", "😮", "PP@e4", "e9e4", "e2xg9"]
         for move in validMoves {
             XCTAssertNotNil(PGNMove(rawValue: move))
             XCTAssertEqual(PGNMove(rawValue: move)?.isPossible, true)
@@ -231,6 +303,35 @@ class PGNParsingTests: XCTestCase {
         XCTAssertEqual(capture!.file, File._e)
         XCTAssertEqual(capture!.sourceRank, nil)
         XCTAssertEqual(capture!.sourceFile, nil)
+
+        let lanMove = try XCTUnwrap(PGNMove(rawValue: "e2e4"))
+        XCTAssertNil(lanMove.dropPiece)
+        XCTAssertEqual(lanMove.file, File._e)
+        XCTAssertEqual(lanMove.rank, Rank(4))
+        XCTAssertEqual(lanMove.sourceFile, File._e)
+        XCTAssertEqual(lanMove.sourceRank, Rank(2))
+
+        let lanCapture = try XCTUnwrap(PGNMove(rawValue: "Pe2xe4"))
+        XCTAssertTrue(lanCapture.isCapture)
+        XCTAssertEqual(lanCapture.sourceFile, File._e)
+        XCTAssertEqual(lanCapture.sourceRank, Rank(2))
+
+        let shortPromotion = try XCTUnwrap(PGNMove(rawValue: "d8Q"))
+        XCTAssertTrue(shortPromotion.isPromotion)
+        XCTAssertEqual(shortPromotion.promotionPiece, Piece.Kind._queen)
+
+        let dropMove = try XCTUnwrap(PGNMove(rawValue: "P@e4"))
+        XCTAssertTrue(dropMove.isDrop)
+        XCTAssertEqual(dropMove.dropPiece, Piece.Kind._pawn)
+        XCTAssertEqual(dropMove.file, File._e)
+        XCTAssertEqual(dropMove.rank, Rank(4))
+
+        let knightDrop = try XCTUnwrap(PGNMove(rawValue: "N@f3+"))
+        XCTAssertTrue(knightDrop.isDrop)
+        XCTAssertTrue(knightDrop.isCheck)
+        XCTAssertEqual(knightDrop.dropPiece, Piece.Kind._knight)
+        XCTAssertEqual(knightDrop.file, File._f)
+        XCTAssertEqual(knightDrop.rank, Rank(3))
 
         let promotion: PGNMove = "d8=B#"
         XCTAssertTrue(promotion.isPossible)
@@ -271,23 +372,82 @@ class PGNParsingTests: XCTestCase {
         XCTAssertTrue(PGNMove(rawValue: "O-O+")!.isCheck)
     }
 
+    func testMovetextDiagnostics() throws {
+        let source = """
+        1. e4 (1... c5
+        """
+
+        let pgn = try PGN(parse: source)
+        let diagnostics = pgn.movetext.diagnostics
+        XCTAssertEqual(diagnostics.count, 1)
+        let diagnostic = try XCTUnwrap(diagnostics.first)
+        XCTAssertEqual(diagnostic.message, "Missing ')' to close variation")
+        XCTAssertEqual(diagnostic.level, .error)
+        XCTAssertEqual(diagnostic.line, 1)
+        XCTAssertEqual(diagnostic.column, 7)
+
+        let unclosedComment = """
+        1. e4 {Missing brace
+        """
+
+        let bracePGN = try PGN(parse: unclosedComment)
+        let braceDiagnostics = bracePGN.movetext.diagnostics
+        XCTAssertEqual(braceDiagnostics.count, 1)
+        let braceDiagnostic = try XCTUnwrap(braceDiagnostics.first)
+        XCTAssertEqual(braceDiagnostic.message, "Missing closing '}' for comment")
+        XCTAssertEqual(braceDiagnostic.level, .error)
+        XCTAssertEqual(braceDiagnostic.line, 1)
+        XCTAssertEqual(braceDiagnostic.column, 7)
+    }
+
+    func testPGNMovetextSupportsLANAndDrops() throws {
+        let source = """
+        [Variant "Crazyhouse"]
+
+        1. e2e4 e7e5 2. Ng1f3 P@e4 *
+        """
+
+        let pgn = try PGN(parse: source)
+        XCTAssertEqual(pgn.tagPairs["Variant"], "Crazyhouse")
+        XCTAssertEqual(pgn.movetext.moves.map(\.notation), ["e2e4", "e7e5", "Ng1f3", "P@e4"])
+    }
+
+    func testMovetextSerializationWithVariations() throws {
+        let source = """
+        1. d4 d5 (1... Nf6) 2. c4 (2... e6) *
+        """
+
+        let pgn = try PGN(parse: source)
+        let exported = pgn.exported()
+        let reparsed = try PGN(parse: exported)
+        XCTAssertEqual(reparsed.movetext, pgn.movetext)
+    }
+
     #if swift(>=3)
 
     func testParserShouldNotCrashOnInvalidMoves() {
         let game = Game()
-        XCTAssertThrowsError(try game.execute(move: "aiuw"))
-        XCTAssertThrowsError(try game.execute(move: ""))
-        XCTAssertThrowsError(try game.execute(move: "a#"))
-        XCTAssertThrowsError(try game.execute(move: "a"))
-        XCTAssertThrowsError(try game.execute(move: "w"))
-        XCTAssertThrowsError(try game.execute(move: "!3"))
-        XCTAssertThrowsError(try game.execute(move: "ad"))
-        XCTAssertThrowsError(try game.execute(move: "aB"))
-        XCTAssertThrowsError(try game.execute(move: "B3"))
-        XCTAssertThrowsError(try game.execute(move: "x"))
-        XCTAssertThrowsError(try game.execute(move: "1"))
-        XCTAssertThrowsError(try game.execute(move: "🍣"))
-        XCTAssertThrowsError(try game.execute(move: "VASF234df89ayrsdfiuafiuawf"))
+        let invalidNotations = [
+            "aiuw",
+            "",
+            "a#",
+            "a",
+            "w",
+            "!3",
+            "ad",
+            "aB",
+            "B3",
+            "x",
+            "1",
+            "🍣",
+            "VASF234df89ayrsdfiuafiuawf",
+        ]
+
+        for raw in invalidNotations {
+            let literal: PGNMove = PGNMove(stringLiteral: raw)
+            XCTAssertFalse(literal.isPossible, "Expected \(raw) to be considered impossible")
+            XCTAssertThrowsError(try game.execute(move: literal))
+        }
     }
 
     #endif
